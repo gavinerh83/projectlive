@@ -1,0 +1,30 @@
+Docker command for mysql: docker run --name my-mysql -p 32769:3306 -e MYSQL_ROOT_PASSWORD=password -d mysql:latest
+
+docker exec -it <container name of mysql> bash
+mysql -u root -p
+
+mysql -P 8888 --protocol=tcp -u root -p
+
+docker run --name assignment-mysql -p 8888:3306 -e MYSQL_ROOT_PASSWORD=password -d gavinerh/projectlive-mysql
+
+docker stop assignment-mysql
+docker start assignment-mysql
+
+create database store;
+show databases;
+use store
+select database();
+create table users (
+	Username varchar(60) not null primary key,
+	Password varchar(120) not null,
+    Company varchar(60),
+    Iscompany varchar(10) not null
+);
+create table logging (
+	Id int not null primary key,
+    Error_Message varchar(120) not null
+);
+show tables;
+
+show columns from logging;
+show columns from users;

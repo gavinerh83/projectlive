@@ -1,0 +1,11 @@
+version: '3'
+services: 
+  mysql-server:
+    image: gavinerh/projectlive-mysql
+    environment: 
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - 8888:3306
+    container_name: assignment-mysql
+    expose: 
+      - 3306

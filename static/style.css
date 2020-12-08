@@ -1,0 +1,179 @@
+body{
+    font-family: "san-serif";
+}
+
+#title{
+    background-color: #ff4c4c;
+    color: #fff;
+}
+
+.container-fluid{
+    padding: 3% 10% 7%;
+}
+
+/* styling the nav bar */
+.navbar{
+    padding-bottom: 4.5rem;
+    padding-top: 1rem;
+    padding-left: 0rem;
+}
+
+/* aligning the kinder with the title section */
+.navbar-brand{
+    padding-left: 0rem;
+    font-weight: 900;
+}
+
+/* nav bar unordered lists of 3 items */
+.nav-item{
+    padding: 0px 18px;
+    font-size: 1.2rem;
+}
+
+/* h1 tags */
+h1{
+    font-family: "Montserrat-black";
+    font-size: 3rem;
+    line-height: 1.5;
+    font-weight: bold;
+}
+
+h2{
+    font-family: "monterrat-bold";
+    font-size: 2.5rem;
+    line-height: 1.5;
+}
+ /* Styling the downlood buttons */
+.download-button{
+    margin: 5% 3% 5% 0;
+}
+
+.navbar-brand{
+    font-family: "ubuntu";
+    font-size: 2.5rem;
+}
+#features1{
+    padding: 7% 2%;
+    background-color: #ff4c4c;
+    position: relative;
+    z-index: 1; /*this line might not be needed */
+
+}
+
+/* Features section */
+
+#features2{
+    padding: 7% 2%;
+    background-color: white;
+    position: relative;
+    z-index: 1; /*this line might not be needed */
+
+}
+
+/* creating the app property */
+.app-property{
+    border-width: 100%;
+    text-align: center;
+}
+
+.icon-property{
+    color: #ef8172;
+    align-content: center;
+    margin: 1rem 1rem;
+}
+.icon-property:hover{
+
+    color: #ff4c68;
+}
+
+.property-wordings{
+    font-family: "Monterrat-bold";
+    font-size: 2rem;
+}
+.property-description{
+    color: #8f8f8f;
+    font-size: 1rem;
+}
+
+
+/* Testimonial section */
+#testimonials{
+    text-align: center;
+    background-color: #ef8172;
+    color: white;
+}
+
+.testimonial-image{
+    width: 10%;
+    border-radius: 100%;
+    margin: 20px;
+}
+
+/* press section */
+#press{
+    text-align: center;
+    background-color: #ef8172;
+    padding-bottom: 5%;
+}
+
+.press-logo{
+    width: 15%;
+    margin: 20px 20px 50px;
+}
+
+.carousel-item{
+    padding:  7% 15%;
+}
+
+/* search section */
+#search{
+    padding: 10%;
+    text-align: center;
+}
+
+.pricing-column{
+    padding: 3% 2%;
+}
+
+#pricing-description{
+    color: grey;
+}
+
+/* call to action section */
+#cta{
+    text-align: center;
+    background-color: #ff4c68;
+    padding: 7% 15%;
+}
+
+.cta-header{
+    color: white;
+    font-size: 2.5rem;
+    font-family: "montserrat";
+    margin-bottom: 5%;
+}
+
+.cta-button{
+    margin-left: 2%;
+}
+
+#footer{
+    text-align: center;
+    background-color: white;
+    margin: 5% auto 5% auto;
+}
+
+.footer-social{
+    margin: auto 2% 3% 2%;
+
+}
+
+@media (max-width: 991px) {
+    #title{
+        text-align: center;
+    }
+    .image-style{
+        position: static;
+        transform: rotate(0);
+    }
+}

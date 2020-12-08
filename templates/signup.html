@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h2>Please fill in your user details</h2>
+    <form method="POST" required>
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" required autocomplete="off"><br>
+        <label for="password">Password</label>
+        <input type="password" name="password" id="password" required autocomplete="off"><br>
+        <label for="isCompany">Are you registering for a company</label>
+        <input type="checkbox" name="isCompany" id="isCompany" autocomplete="off" value="true"><br>
+        <label for="company">Company:</label>
+        <input type="text" name="company" id="company" placeholder="Enter company name, if not enter nil" required autocomplete="off"><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
