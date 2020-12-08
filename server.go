@@ -24,8 +24,7 @@ var (
 	userTrackMap = hashtable.Init() //key is the username, value is the
 	sqluser      = "root"
 	sqlpassword  = "password"
-	userMap      = hashtable.Init()
-	myUser       *hashtable.Node
+	userMap      map[string]users.User
 )
 
 func init() {
@@ -62,7 +61,7 @@ func main() {
 	log.Fatalln(http.ListenAndServe(":5000", nil))
 }
 
-func getUser(w http.ResponseWriter, r *http.Request) *hashtable.Node {
+func getUser(w http.ResponseWriter, r *http.Request) users.User {
 	//get current session cookie
 	myCookie, err := r.Cookie("myCookie")
 	if err != nil {
@@ -74,18 +73,13 @@ func getUser(w http.ResponseWriter, r *http.Request) *hashtable.Node {
 		}
 	}
 	http.SetCookie(w, myCookie)
-	log.Println("Getting user")
+	var myUser users.User
 	//if user already exists, use the cookie value to extract username as key to user struct
 	username, err := sessionMap.Search(myCookie.Value)
 	if err != nil {
-		log.Println("Cookie value not in storage")
 		return myUser
 	}
-
-	myUser, err = userMap.SearchUsers(username.(string))
-
-	//check if the user already exists
-
+	myUser = userMap[username.(string)]
 	return myUser
 }
 func alreadyLoggedIn(r *http.Request) bool {
@@ -110,21 +104,16 @@ func alreadyLoggedIn(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	_, err = userMap.SearchUsers(username.(string))
-	if err != nil {
+	_, ok := userMap[username.(string)]
+	if !ok {
 		return false
 	}
 	return true
 }
 func index(w http.ResponseWriter, r *http.Request) {
-	node, err := userMap.SearchUsers("gavin")
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(node.Username, node.Company, node.IsCompany, node.Password)
 	myUser := getUser(w, r)
 	// fmt.Printf("Type of username: %T", myUser.Username)
-	err = tpl.ExecuteTemplate(w, "index.html", myUser)
+	err := tpl.ExecuteTemplate(w, "index.html", myUser)
 	if err != nil {
 		log.Println(err)
 	}
@@ -143,8 +132,8 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		isCompany := r.FormValue("isCompany")
 		//input of username is not empty, check if it is taken
 		if username != "" {
-			_, err := userMap.Search(username)
-			if err == nil {
+			_, ok := userMap[username]
+			if ok {
 				tpl.ExecuteTemplate(w, "redirect.html", "Username was taken please select another")
 				return
 			}
@@ -169,11 +158,11 @@ func signup(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if isCompany == "true" {
-				userMap.InsertUsers(username, string(bPassword), company, isCompany)
+				userMap[username] = users.User{Username: username, Password: string(bPassword), Company: company, IsCompany: isCompany}
 			} else {
 				company = ""
 				isCompany = "false"
-				userMap.InsertUsers(username, string(bPassword), company, isCompany)
+				userMap[username] = users.User{Username: username, Password: string(bPassword), Company: company, IsCompany: isCompany}
 			}
 			//remember to put the info in the database
 			// tpl.ExecuteTemplate(w, "redirect.html", "Sign up successfully, please proceed to login")
@@ -182,7 +171,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//if method is not post, then user has not signup yet
-	tpl.ExecuteTemplate(w, "signup.html", myUser)
+	tpl.ExecuteTemplate(w, "signup.html", nil)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -203,12 +192,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
-		myUser, err := userMap.SearchUsers(username)
-		if err != nil {
+		myUser, ok := userMap[username]
+		if !ok {
 			tpl.ExecuteTemplate(w, "redirect.html", "No Username or password found")
 			return
 		}
-		_, err = userTrackMap.Search(username)
+		_, err := userTrackMap.Search(username)
 		if err == nil {
 			tpl.ExecuteTemplate(w, "redirect.html", "There is a similar account currently logged in, please logout first")
 			return

@@ -2,7 +2,6 @@
 package users
 
 import (
-	hashtable "ProjectLive/hashTable"
 	"database/sql"
 	"fmt"
 
@@ -28,10 +27,10 @@ func InsertRecord(db *sql.DB, username, password, company, iscompany string) err
 }
 
 //GetRecord retrieves information from the database
-func GetRecord(db *sql.DB) (*hashtable.HashTable, error) {
+func GetRecord(db *sql.DB) (map[string]User, error) {
 	var results *sql.Rows
 	var err error
-	var userMap = hashtable.Init()
+	userMap := map[string]User{}
 	results, err = db.Query("SELECT * FROM users")
 	if err != nil {
 		return userMap, err
@@ -43,7 +42,7 @@ func GetRecord(db *sql.DB) (*hashtable.HashTable, error) {
 		if err != nil {
 			return userMap, err
 		}
-		err = userMap.InsertUsers(users.Username, users.Password, users.Company, users.IsCompany)
+		userMap[users.Username] = users
 		if err != nil {
 			return userMap, err
 		}

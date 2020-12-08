@@ -43,22 +43,10 @@ func (h *HashTable) Insert(key string, value interface{}) error {
 	return h.array[index].insert(key, value)
 }
 
-//InsertUsers takes in the user details and store it in the hash table
-func (h *HashTable) InsertUsers(key, password, company, iscompany string) error {
-	index := hash(key)
-	return h.array[index].insertUsers(key, password, company, iscompany)
-}
-
 //Search looks for the key in the hashtable
 func (h *HashTable) Search(key string) (interface{}, error) {
 	index := hash(key)
 	return h.array[index].search(key)
-}
-
-//SearchUsers takes in the key and return the stored value that is represented by the key and an error
-func (h *HashTable) SearchUsers(key string) (*Node, error) {
-	index := hash(key)
-	return h.array[index].searchUsers(key)
 }
 
 // Delete removes the item from the hash function which will call the delete from the linkedlist
@@ -81,17 +69,6 @@ func (p *Bucket) insert(k string, v interface{}) error {
 	return nil
 }
 
-func (p *Bucket) insertUsers(k, password, company, iscompany string) error {
-	if p.searchPresence(k) == true {
-		//if item exist
-		return fmt.Errorf("User already exist")
-	}
-	newnode := &Node{Username: k, Password: password, Company: company, IsCompany: iscompany}
-	newnode.next = p.head
-	p.head = newnode
-	return nil
-}
-
 //ssearchPresence search for key and return if key is found
 func (p *Bucket) searchPresence(k string) bool {
 	currentnode := p.head
@@ -104,19 +81,6 @@ func (p *Bucket) searchPresence(k string) bool {
 		}
 	}
 	return false
-}
-
-func (p *Bucket) searchUsers(k string) (*Node, error) {
-	currentnode := p.head
-	//keep looping the list until you find the item
-	for currentnode != nil {
-		if currentnode.Username == k {
-			return currentnode, nil
-		} else {
-			currentnode = currentnode.next
-		}
-	}
-	return currentnode, fmt.Errorf("User not found")
 }
 
 //search finds the key from the linkedlist from determined array index and returns the value tagged to key
