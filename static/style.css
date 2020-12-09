@@ -8,12 +8,12 @@ body{
 }
 
 .container-fluid{
-    padding: 3% 10% 7%;
+    padding: 3% 10% 5%;
 }
 
 /* styling the nav bar */
 .navbar{
-    padding-bottom: 4.5rem;
+    padding-bottom: 1rem;
     padding-top: 1rem;
     padding-left: 0rem;
 }
@@ -54,17 +54,16 @@ h2{
 }
 #features1{
     padding: 7% 2%;
-    background-color: #ff4c4c;
+    background-color:white;
     position: relative;
     z-index: 1; /*this line might not be needed */
-
 }
 
 /* Features section */
 
 #features2{
     padding: 7% 2%;
-    background-color: white;
+    background-color: #f77d7d;
     position: relative;
     z-index: 1; /*this line might not be needed */
 
@@ -77,21 +76,22 @@ h2{
 }
 
 .icon-property{
-    color: #ef8172;
+    color: white;
     align-content: center;
     margin: 1rem 1rem;
 }
 .icon-property:hover{
 
-    color: #ff4c68;
+    color: rgb(223, 198, 198);
 }
 
 .property-wordings{
     font-family: "Monterrat-bold";
+    color: white;
     font-size: 2rem;
 }
 .property-description{
-    color: #8f8f8f;
+    color: white;
     font-size: 1rem;
 }
 
@@ -99,8 +99,8 @@ h2{
 /* Testimonial section */
 #testimonials{
     text-align: center;
-    background-color: #ef8172;
-    color: white;
+    background-color: white;
+    color: black;
 }
 
 .testimonial-image{
@@ -109,35 +109,6 @@ h2{
     margin: 20px;
 }
 
-/* press section */
-#press{
-    text-align: center;
-    background-color: #ef8172;
-    padding-bottom: 5%;
-}
-
-.press-logo{
-    width: 15%;
-    margin: 20px 20px 50px;
-}
-
-.carousel-item{
-    padding:  7% 15%;
-}
-
-/* search section */
-#search{
-    padding: 10%;
-    text-align: center;
-}
-
-.pricing-column{
-    padding: 3% 2%;
-}
-
-#pricing-description{
-    color: grey;
-}
 
 /* call to action section */
 #cta{

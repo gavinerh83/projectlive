@@ -57,6 +57,7 @@ func main() {
 	go http.HandleFunc(urlPattern.Home, index)
 	go http.HandleFunc(urlPattern.Signup, signup)
 	go http.HandleFunc(urlPattern.Login, login)
+	go http.HandleFunc(urlPattern.CustomerSell, customerSell)
 
 	log.Fatalln(http.ListenAndServe(":5000", nil))
 }
@@ -164,8 +165,10 @@ func signup(w http.ResponseWriter, r *http.Request) {
 				isCompany = "false"
 				userMap[username] = users.User{Username: username, Password: string(bPassword), Company: company, IsCompany: isCompany}
 			}
-			//remember to put the info in the database
-			// tpl.ExecuteTemplate(w, "redirect.html", "Sign up successfully, please proceed to login")
+			//Put the user info in database
+			db := connectDB()
+			defer db.Close()
+			users.InsertRecord(db, username, string(bPassword), company, isCompany)
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -242,7 +245,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//check if user is company or customer
-		if myUser.Company == "nil" {
+		if myUser.Company == "" {
 			//it is a customer
 			http.Redirect(w, r, "/customer", http.StatusSeeOther)
 		} else {
@@ -254,6 +257,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteTemplate(w, "login.html", nil)
 }
 
+//customerSell display the information for capturing phone
 func customerSell(w http.ResponseWriter, r *http.Request) {
 	if !alreadyLoggedIn(r) {
 		tpl.ExecuteTemplate(w, "redirect.html", "Please proceed to login")
