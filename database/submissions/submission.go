@@ -64,44 +64,18 @@ func GetID(db *sql.DB, id string) (Condition, error) {
 	return phone, nil
 }
 
-// //DeleteRecord deletes record from the submissions table and insert into pastsubmissions table
-// func transferDetails(db *sql.DB, customerName, sellername string) error {
-// 	//retrieve record
-// 	var results *sql.Rows
-// 	var err error
-// 	submissions := map[string]Condition{}
-// 	results, err = db.Query("SELECT * FROM submissions WHERE Customer = ?", customerName)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer results.Close()
-// 	var phone Condition
-// 	for results.Next() {
-// 		err = results.Scan(&phone.Customer, &phone.Name, &phone.Storage, &phone.Housing, &phone.OriginalAccessories, &phone.OtherIssues)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		submissions[phone.Customer] = phone
-// 	}
-// 	//Delete data from submissions database
-// 	query := fmt.Sprintf("DELETE FROM submissions WHERE Customer ='%s'", customerName)
-// 	result, err := db.Exec(query) //try exec and get the resuults
-// 	if err != nil {
-// 		return err
-// 	}
-// 	rowsAffected, err := result.RowsAffected()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if rowsAffected == 0 {
-// 		return fmt.Errorf("Customer not found")
-// 	}
-// 	//Insert into pastsubmissions database
-// 	query = fmt.Sprintf("INSERT INTO pastsubmissions (Customer, Seller, Name, Storage, Housing, Original_Accessories, Other_Issues) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s')", customerName, sellername, phone., housing, originalaccessories, otherissues)
-// 	_, err = db.Query(query)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// 	return nil
-// }
+func Delete(db *sql.DB, id string) error {
+	query := fmt.Sprintf("DELETE FROM submissions WHERE ID = '%s'", id)
+	result, err := db.Exec(query) //try exec and get the resuults
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("Course code not found")
+	}
+	return nil
+}

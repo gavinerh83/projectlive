@@ -3,6 +3,7 @@ package main
 import (
 	"ProjectLive/database/quotation"
 	"ProjectLive/database/submissions"
+	"ProjectLive/database/transactions"
 	"ProjectLive/database/users"
 	hashtable "ProjectLive/hashTable"
 	"ProjectLive/logger"
@@ -43,6 +44,20 @@ type phoneDetails struct {
 	Screen              string
 	AnyOtherIssues      string
 	OriginalAccessories string
+}
+
+type displayQuotation struct {
+	Seller      string
+	NameOfPhone string
+	Quotation   string
+	ID          string
+}
+
+type QuotationResponse struct {
+	ID          string
+	NameOfPhone string
+	Price       string
+	Seller      string
 }
 
 var (
@@ -437,6 +452,7 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	//change this======================================================================
 	detailsToDisplay := phoneDetails{}
 	detailsToDisplay.NameOfPhone = phoneinfo.Name
 	detailsToDisplay.Storage = phoneinfo.Storage
@@ -447,7 +463,7 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 	detailsToDisplay.ID = phoneinfo.ID
 	if r.Method == http.MethodPost {
 		price := r.FormValue("quotation")
-		err = quotation.InsertQuotation(db, phoneinfo.Customer, seller, phoneinfo.ID, price)
+		err = quotation.InsertQuotation(db, phoneinfo.Customer, seller, phoneinfo.ID, price, phoneinfo.Name)
 		if err != nil {
 			log.Println(err)
 			return
@@ -458,7 +474,46 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteTemplate(w, "showDetails.html", detailsToDisplay)
 }
 
-//submittedOrder shows the list of submitted orders from customer end
+//submittedOrder shows the list of submitted quotations to the customer
 func viewResponse(w http.ResponseWriter, r *http.Request) {
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	//take the current values from the quotation table and display
+	db := connectDB()
+	customer := getUsername(r)
+	var tableData []quotation.QuoteTable
+	tableData, err := quotation.GetCustomerQuote(db, customer)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if r.Method == http.MethodPost {
+		//insert into pastsubmissions table
+		sellerWithID := r.FormValue("choice")
+		ss := strings.Split(sellerWithID, "\\")
+		tNow := time.Now().String()
+		tNow = tNow[:28]
+		c, err := submissions.GetID(db, ss[1])
+		if err != nil {
+			log.Println(err)
+		}
+		transactions.InsertTransaction(db, ss[1], c.Customer, ss[0], c.Name, c.Storage, c.Housing, c.Screen, c.OriginalAccessories, c.OtherIssues, tNow)
+		//delete from submissions
+		err = submissions.Delete(db, ss[1])
+		if err != nil {
+			log.Println(err)
+		}
+		//delete from quotations
+		err = quotation.Delete(db, ss[1])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	tpl.ExecuteTemplate(w, "displayQuotes.html", tableData)
+	//use the id and get the phone name from submissions table
 
+	//after user makes selection, transaction will go to the pastsubmissions table
+	//other quotations from other sellers related to this transactions will be deleted
+	//try to input multiple inputs struct into the tpl.executeTemplate
 }
