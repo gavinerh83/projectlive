@@ -44,26 +44,24 @@ func GetDetails(db *sql.DB) (map[string]Condition, error) {
 		}
 		submissions[phone.ID] = phone
 	}
-	fmt.Println(submissions)
 	return submissions, nil
 }
 
-func GetSpecific(db *sql.DB, customerName string) ([]Condition, error) {
-	submissions := []Condition{}
-	results, err := db.Query("SELECT * FROM submissions WHERE Username = ?", customerName)
+//GetID uses the transaction id and return specific phone information
+func GetID(db *sql.DB, id string) (Condition, error) {
+	var phone Condition
+	results, err := db.Query("SELECT * FROM submissions WHERE ID = ?", id)
 	if err != nil {
-		return submissions, err
+		return phone, err
 	}
 	defer results.Close()
 	for results.Next() {
-		var phone Condition
 		err = results.Scan(&phone.ID, &phone.Customer, &phone.Name, &phone.Storage, &phone.Housing, &phone.Screen, &phone.OriginalAccessories, &phone.OtherIssues)
 		if err != nil {
-			return submissions, err
+			return phone, err
 		}
-		submissions = append(submissions, phone)
 	}
-	return submissions, nil
+	return phone, nil
 }
 
 // //DeleteRecord deletes record from the submissions table and insert into pastsubmissions table

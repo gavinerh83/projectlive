@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ProjectLive/database/quotation"
 	"ProjectLive/database/submissions"
 	"ProjectLive/database/users"
 	hashtable "ProjectLive/hashTable"
@@ -28,12 +29,20 @@ type condition struct {
 	OriginalAccessories []string
 }
 
-//data contain the fields for the data parsing into the template
+//data contain the fields for the data parsing into the template for selection
 type data struct {
-	NameOfPhone  string
-	ID           string
-	CustomerName string
-	SellerName   string
+	NameOfPhone string
+	ID          string
+}
+
+type phoneDetails struct {
+	NameOfPhone         string
+	ID                  string
+	Storage             string
+	Housing             string
+	Screen              string
+	AnyOtherIssues      string
+	OriginalAccessories string
 }
 
 var (
@@ -79,9 +88,21 @@ func main() {
 	go http.HandleFunc(urlPattern.CustomerSell, customerSell)
 	go http.HandleFunc(urlPattern.OrderList, orderList)
 	go http.HandleFunc(urlPattern.Logout, logout)
+	go http.HandleFunc(urlPattern.InsertQuotation, insertQuotation)
+	go http.HandleFunc(urlPattern.ViewResponse, viewResponse)
 	// go http.HandleFunc(urlPattern.AutoLogout, autoLogout)
 
 	log.Fatalln(http.ListenAndServe(":5000", nil))
+}
+
+func getUsername(r *http.Request) string {
+	myCookie, _ := r.Cookie("myCookie")
+	username, err := sessionMap.Search(myCookie.Value)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+	return username
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) users.User {
@@ -102,7 +123,7 @@ func getUser(w http.ResponseWriter, r *http.Request) users.User {
 	if err != nil {
 		return myUser
 	}
-	myUser = userMap[username.(string)]
+	myUser = userMap[username]
 	return myUser
 }
 func alreadyLoggedIn(r *http.Request) bool {
@@ -118,7 +139,7 @@ func alreadyLoggedIn(r *http.Request) bool {
 		if err != nil {
 			return false
 		}
-		fmt.Println(userTrackMap.Delete(username.(string)))
+		fmt.Println(userTrackMap.Delete(username))
 		fmt.Println(sessionMap.Delete(myCookie.Value))
 		return false
 	}
@@ -127,7 +148,7 @@ func alreadyLoggedIn(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	_, ok := userMap[username.(string)]
+	_, ok := userMap[username]
 	if !ok {
 		return false
 	}
@@ -343,6 +364,9 @@ func customerSell(w http.ResponseWriter, r *http.Request) {
 //orderList show the list of orders from the database that customer submitted
 //generates a submission id, input into database
 func orderList(w http.ResponseWriter, r *http.Request) {
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 	//get information from database and parse into templates for sellers to view
 	//only show information that the seller did not reply to
 	db := connectDB()
@@ -351,27 +375,90 @@ func orderList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
+	selleruser := getUsername(r)
+	checkedID, err := quotation.SearchSeller(db, selleruser)
 	dataSlice := []data{}
 	for _, v := range orders {
+		skip := false
+		for _, v1 := range checkedID {
+			if v.ID == v1 {
+				skip = true
+				break
+			}
+		}
+		if skip == true {
+			continue
+		}
 		var values data
 		values.ID = v.ID
 		values.NameOfPhone = v.Name
 		dataSlice = append(dataSlice, values)
 	}
-	// if r.Method == http.MethodPost {
-	// 	//id of the order
-	// 	myUser := getUser(w, r)
-	// 	seller := myUser.Username
-	// 	id := r.FormValue("id")
-	// 	details := orders[id]
-	// 	customer := details.Customer
-	// 	err := quotation.InsertQuotation(db, customer, seller, id, quotation)
-
-	// }
+	if r.Method == http.MethodPost {
+		//get the sessionID from the cookie and search inside sessionmap, delete the current value
+		//create new value containing the transaction id
+		//id of the order
+		myCookie, _ := r.Cookie("myCookie")
+		sessionMap.Delete(myCookie.Value)
+		id := r.FormValue("order")
+		err := sessionMap.InsertTransaction(myCookie.Value, selleruser, id)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		http.Redirect(w, r, "/insertQuotation", http.StatusSeeOther)
+		return
+	}
 	tpl.ExecuteTemplate(w, "orderList.html", dataSlice)
 }
 
-//submittedOrder shows the list of submitted orders
-func submittedOrder(w http.ResponseWriter, r *http.Request) {
+func insertQuotation(w http.ResponseWriter, r *http.Request) {
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	//extract transaction id from sessionMap
+	myCookie, _ := r.Cookie("myCookie")
+	id, err := sessionMap.SearchTransaction(myCookie.Value)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	seller, err := sessionMap.Search(myCookie.Value)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	db := connectDB()
+	defer db.Close()
+	//search the submissions database
+	phoneinfo, err := submissions.GetID(db, id)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	detailsToDisplay := phoneDetails{}
+	detailsToDisplay.NameOfPhone = phoneinfo.Name
+	detailsToDisplay.Storage = phoneinfo.Storage
+	detailsToDisplay.Screen = phoneinfo.Screen
+	detailsToDisplay.Housing = phoneinfo.Housing
+	detailsToDisplay.AnyOtherIssues = phoneinfo.OtherIssues
+	detailsToDisplay.OriginalAccessories = phoneinfo.OriginalAccessories
+	detailsToDisplay.ID = phoneinfo.ID
+	if r.Method == http.MethodPost {
+		price := r.FormValue("quotation")
+		err = quotation.InsertQuotation(db, phoneinfo.Customer, seller, phoneinfo.ID, price)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	tpl.ExecuteTemplate(w, "showDetails.html", detailsToDisplay)
+}
+
+//submittedOrder shows the list of submitted orders from customer end
+func viewResponse(w http.ResponseWriter, r *http.Request) {
 
 }

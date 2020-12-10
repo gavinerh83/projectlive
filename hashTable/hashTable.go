@@ -21,10 +21,7 @@ type Bucket struct {
 //Node contain the fields that an instance of the hash table should have
 type Node struct {
 	Username    string
-	Value       interface{}
-	Password    string
-	Company     string
-	IsCompany   string
+	Value       string
 	TempStorage string
 	next        *Node
 }
@@ -39,13 +36,13 @@ func hash(key string) int {
 }
 
 //Insert inserts into the hashtable
-func (h *HashTable) Insert(key string, value interface{}) error {
+func (h *HashTable) Insert(key string, value string) error {
 	index := hash(key)
 	return h.array[index].insert(key, value)
 }
 
-//Search looks for the key in the hashtable
-func (h *HashTable) Search(key string) (interface{}, error) {
+//Search looks for the key in the hashtable and returns the username
+func (h *HashTable) Search(key string) (string, error) {
 	index := hash(key)
 	return h.array[index].search(key)
 }
@@ -56,8 +53,44 @@ func (h *HashTable) Delete(key string) bool {
 	return h.array[index].delete(key)
 }
 
+//InsertTransaction inserts transaction id into the bucket where the key is the sessionID
+func (h *HashTable) InsertTransaction(key, username, id string) error {
+	index := hash(key)
+	return h.array[index].insertTransaction(key, username, id)
+}
+
+//SearchTransaction search for the transaction id and returns it
+func (h *HashTable) SearchTransaction(key string) (string, error) {
+	index := hash(key)
+	return h.array[index].searchTransaction(key)
+}
+
+func (p *Bucket) insertTransaction(k, username, id string) error {
+	if p.searchPresence(k) == true {
+		//if item exist
+		return fmt.Errorf("User already exist")
+	}
+	newnode := &Node{Username: k, Value: username, TempStorage: id}
+	newnode.next = p.head
+	p.head = newnode
+	return nil
+}
+
+func (p *Bucket) searchTransaction(k string) (string, error) {
+	currentnode := p.head
+	//keep looping the list until you find the item
+	for currentnode != nil {
+		if currentnode.Username == k {
+			return currentnode.TempStorage, nil
+		}
+		currentnode = currentnode.next
+
+	}
+	return "", fmt.Errorf("User not found")
+}
+
 //insert inserts the key in the linked list
-func (p *Bucket) insert(k string, v interface{}) error {
+func (p *Bucket) insert(k string, v string) error {
 	//first check if the key already exist
 	if p.searchPresence(k) == true {
 		//if item exist
@@ -77,23 +110,23 @@ func (p *Bucket) searchPresence(k string) bool {
 	for currentnode != nil {
 		if currentnode.Username == k {
 			return true
-		} else {
-			currentnode = currentnode.next
 		}
+		currentnode = currentnode.next
+
 	}
 	return false
 }
 
 //search finds the key from the linkedlist from determined array index and returns the value tagged to key
-func (p *Bucket) search(k string) (interface{}, error) {
+func (p *Bucket) search(k string) (string, error) {
 	currentnode := p.head
 	//keep looping the list until you find the item
 	for currentnode != nil {
 		if currentnode.Username == k {
 			return currentnode.Value, nil
-		} else {
-			currentnode = currentnode.next
 		}
+		currentnode = currentnode.next
+
 	}
 	return "", fmt.Errorf("User not found")
 }
@@ -116,9 +149,9 @@ func (p *Bucket) delete(k string) bool {
 		if currentnode.next.Username == k {
 			currentnode.next = currentnode.next.next
 			return true
-		} else {
-			currentnode = currentnode.next
 		}
+		currentnode = currentnode.next
+
 	}
 	return false
 }
