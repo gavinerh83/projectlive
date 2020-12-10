@@ -20,12 +20,13 @@ type Bucket struct {
 
 //Node contain the fields that an instance of the hash table should have
 type Node struct {
-	Username  string
-	Value     interface{}
-	Password  string
-	Company   string
-	IsCompany string
-	next      *Node
+	Username    string
+	Value       interface{}
+	Password    string
+	Company     string
+	IsCompany   string
+	TempStorage string
+	next        *Node
 }
 
 //hash generates a hash from the inserted key

@@ -49,7 +49,7 @@ func ParseToken(signedToken string) (*MyClaims, error) {
 
 //InputValidate checks for invalid input from user
 func InputValidate(input string) bool {
-	unwantedChar := []string{"\n", "'", "\"", "<", ">", " ", "\t"}
+	unwantedChar := []string{"\n", "'", "\"", "<", ">", "\t"}
 	for _, v := range unwantedChar {
 		if strings.Contains(input, v) {
 			return false

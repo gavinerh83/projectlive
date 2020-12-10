@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ProjectLive/database/submissions"
 	"ProjectLive/database/users"
 	hashtable "ProjectLive/hashTable"
 	"ProjectLive/logger"
@@ -11,12 +12,29 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type condition struct {
+	Storage             []string
+	Screen              []string
+	Housing             []string
+	AnyOtherIssues      []string
+	OriginalAccessories []string
+}
+
+//data contain the fields for the data parsing into the template
+type data struct {
+	NameOfPhone  string
+	ID           string
+	CustomerName string
+	SellerName   string
+}
 
 var (
 	tpl          *template.Template
@@ -37,6 +55,7 @@ func init() {
 	if err != nil {
 		log.Println(err)
 	}
+
 }
 func connectDB() *sql.DB {
 	connectionString := fmt.Sprintf("%s:%s@tcp(127.0.0.1:8888)/store", sqluser, sqlpassword)
@@ -58,6 +77,9 @@ func main() {
 	go http.HandleFunc(urlPattern.Signup, signup)
 	go http.HandleFunc(urlPattern.Login, login)
 	go http.HandleFunc(urlPattern.CustomerSell, customerSell)
+	go http.HandleFunc(urlPattern.OrderList, orderList)
+	go http.HandleFunc(urlPattern.Logout, logout)
+	// go http.HandleFunc(urlPattern.AutoLogout, autoLogout)
 
 	log.Fatalln(http.ListenAndServe(":5000", nil))
 }
@@ -96,8 +118,8 @@ func alreadyLoggedIn(r *http.Request) bool {
 		if err != nil {
 			return false
 		}
-		userTrackMap.Delete(username.(string))
-		sessionMap.Delete(myCookie.Value)
+		fmt.Println(userTrackMap.Delete(username.(string)))
+		fmt.Println(sessionMap.Delete(myCookie.Value))
 		return false
 	}
 	//check if the userMap contain the user information
@@ -185,7 +207,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}()
 	if alreadyLoggedIn(r) {
 		myUser := getUser(w, r)
-		if myUser.Username == "admin" {
+		if myUser.Username == "admin@gmail.com" {
 			http.Redirect(w, r, "/adminOnly", http.StatusSeeOther)
 			return
 		}
@@ -257,15 +279,99 @@ func login(w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteTemplate(w, "login.html", nil)
 }
 
-//customerSell display the information for capturing phone
+func logout(w http.ResponseWriter, r *http.Request) {
+	if !alreadyLoggedIn(r) {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	myCookie, err := r.Cookie("myCookie")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	myUser := getUser(w, r)
+	userTrackMap.Delete(myUser.Username)
+	//delete the session from sessionMap
+	sessionMap.Delete(myCookie.Value)
+	//delete cookie
+	myCookie = &http.Cookie{
+		Name:   "myCookie",
+		Value:  "",
+		MaxAge: -1,
+	}
+	http.SetCookie(w, myCookie)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+//customerSell display the information for capturing phone and create order for sellers
 func customerSell(w http.ResponseWriter, r *http.Request) {
 	if !alreadyLoggedIn(r) {
-		tpl.ExecuteTemplate(w, "redirect.html", "Please proceed to login")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 	if r.Method == http.MethodPost {
 		//obtain information about the user phone selling details
-
+		id := uuid.NewV4()
+		deviceName := r.FormValue("devicename")
+		storage := r.FormValue("storage")
+		screen := r.FormValue("screen")
+		housing := r.FormValue("housing")
+		otherIssues := r.Form["otherissues"]
+		issues := strings.Join(otherIssues, ",")
+		accessories := r.Form["accessories"]
+		acc := strings.Join(accessories, ",")
+		//insert the data in the database under the submissions table
+		db := connectDB()
+		defer db.Close()
+		myUser := getUser(w, r)
+		err := submissions.InsertDetails(db, myUser.Username, deviceName, storage, housing, screen, acc, issues, id.String())
+		if err != nil {
+			log.Println(err)
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	tpl.ExecuteTemplate(w, "sellPhones.html", nil)
+	//create a struct type with slices [device storage], [screen], [housing], [other issues], [original accessories]
+	phoneCondition := condition{
+		Storage:             []string{"32GB", "64GB", "128GB", "512GB"},
+		Screen:              []string{"Cracked or chipped", "Moderate scratches", "Minor scratches", "Flawless"},
+		Housing:             []string{"Cracked or chipped", "Moderate Scratches", "Minor scratches", "Flawless"},
+		AnyOtherIssues:      []string{"Unable to power on", "LED display defective", "Camera faulty", "Touchscreen faulty", "Fingerprint/Face sensor faulty", "Flawless"},
+		OriginalAccessories: []string{"Box", "Charging cable", "Power adaptor", "Earphones"},
+	}
+	tpl.ExecuteTemplate(w, "sellPhones.html", phoneCondition)
+}
+
+//orderList show the list of orders from the database that customer submitted
+//generates a submission id, input into database
+func orderList(w http.ResponseWriter, r *http.Request) {
+	//get information from database and parse into templates for sellers to view
+	//only show information that the seller did not reply to
+	db := connectDB()
+	defer db.Close()
+	orders, err := submissions.GetDetails(db)
+	if err != nil {
+		log.Println(err)
+	}
+	dataSlice := []data{}
+	for _, v := range orders {
+		var values data
+		values.ID = v.ID
+		values.NameOfPhone = v.Name
+		dataSlice = append(dataSlice, values)
+	}
+	// if r.Method == http.MethodPost {
+	// 	//id of the order
+	// 	myUser := getUser(w, r)
+	// 	seller := myUser.Username
+	// 	id := r.FormValue("id")
+	// 	details := orders[id]
+	// 	customer := details.Customer
+	// 	err := quotation.InsertQuotation(db, customer, seller, id, quotation)
+
+	// }
+	tpl.ExecuteTemplate(w, "orderList.html", dataSlice)
+}
+
+//submittedOrder shows the list of submitted orders
+func submittedOrder(w http.ResponseWriter, r *http.Request) {
+
 }

@@ -62,7 +62,7 @@ func DeleteRecord(db *sql.DB, username string) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("Course code not found")
+		return fmt.Errorf("Username not found")
 	}
 	return nil
 }

@@ -5,7 +5,7 @@ mysql -u root -p
 
 mysql -P 8888 --protocol=tcp -u root -p
 
-docker run --name assignment-mysql -p 8888:3306 -e MYSQL_ROOT_PASSWORD=password -d gavinerh/projectlive-mysql
+docker run --name assignment-mysql -p 8888:3306 -e MYSQL_ROOT_PASSWORD=password -d gavinerh/projectlive-mysql:7
 
 docker stop assignment-mysql
 docker start assignment-mysql
@@ -24,6 +24,39 @@ create table logging (
 	Id int not null primary key,
     Error_Message varchar(120) not null
 );
+create table submissions (
+    ID varchar(100) not null primary key,
+	Username varchar(120) not null,
+	Name varchar(50) not null,
+    Storage varchar(10) not null,
+    Housing varchar(30) not null,
+    Screen varchar(20) not null,
+    Original_Accessories varchar(100) not null,
+    Other_Issues varchar(150) not null
+);
+create table pastsubmissions (
+    ID varchar(100) not null primary key,
+	Customer varchar(60) not null,
+    Seller varchar(60) not null,
+	Name varchar(50) not null,
+    Storage varchar(10) not null,
+    Housing varchar(30) not null,
+    Screen varchar(20) not null,
+    Original_Accessories varchar(100) not null,
+    Other_Issues varchar(150) not null,
+    DateTime varchar(30) not null
+);
+
+quotation table will need to contain the customer username, seller username, so when the seller responded
+to the order, it will no longer be shown in the List of orders link
+create table quotations (
+    ID varchar(100) not null primary key,
+    Quotation int not null,
+    Customer varchar(60) not null,
+    Seller varchar(60) not null
+);
+
+
 show tables;
 
 show columns from logging;
