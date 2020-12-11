@@ -46,11 +46,11 @@
       </section>
         {{range $key, $element := .}}
         Quotation {{$key}}: <br>
-        Phone: {{.NameOfPhone}}
+        <b>Phone: {{.NameOfPhone}}</b>
         <br>
-        Seller: {{.Seller}}
+        <b>Seller: {{.Seller}}</b>
         <br>
-        Quotation: {{.Quotation}}
+        Quotation: ${{.Quotation}}
         <br>
         Transaction ID: {{.ID}}
         <br><br><br>
@@ -60,7 +60,7 @@
             <select name="choice" id="choice" required>
             <option disabled selected value> -- select a seller -- </option>
             {{range .}}
-            <option value={{.Seller}}\{{.ID}}>{{.Seller}}--{{.NameOfPhone}}</option>
+            <option value={{.Seller}}\{{.ID}}\{{.Quotation}}>{{.Seller}}--{{.NameOfPhone}}--${{.Quotation}}</option>
             {{end}}
        </select>
        <input type="submit">

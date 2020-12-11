@@ -1,16 +1,17 @@
 package url
 
 type url struct {
-	Static       string
-	Login        string
-	Signup       string
-	Home         string
-	CustomerSell string
-	ViewResponse string
-	OrderList    string
-	Logout       string
-	// AutoLogout      string
-	InsertQuotation string
+	Static              string
+	Login               string
+	Signup              string
+	Home                string
+	CustomerSell        string
+	ViewResponse        string
+	OrderList           string
+	Logout              string
+	SellerTransaction   string
+	InsertQuotation     string
+	CustomerTransaction string
 }
 
 //ReturnURL returns the url for the controller
@@ -24,7 +25,8 @@ func ReturnURL() url {
 	urlPattern.ViewResponse = "/viewResponse" //show the page to view responses from sellers
 	urlPattern.OrderList = "/orderList"       //show the past transactions and new orders
 	urlPattern.Logout = "/logout"
-	// urlPattern.AutoLogout = "/autologout"
 	urlPattern.InsertQuotation = "/insertQuotation"
+	urlPattern.SellerTransaction = "/successTransactions"
+	urlPattern.CustomerTransaction = "/viewSubmitted"
 	return urlPattern
 }

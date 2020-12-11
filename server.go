@@ -1,12 +1,12 @@
 package main
 
 import (
+	"ProjectLive/database/logger"
 	"ProjectLive/database/quotation"
 	"ProjectLive/database/submissions"
 	"ProjectLive/database/transactions"
 	"ProjectLive/database/users"
 	hashtable "ProjectLive/hashTable"
-	"ProjectLive/logger"
 	"ProjectLive/secure"
 	"ProjectLive/url"
 	"database/sql"
@@ -77,7 +77,7 @@ func init() {
 	var err error
 	userMap, err = users.GetRecord(db)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(db, "Failed to retrieve record from database")
 	}
 
 }
@@ -105,6 +105,8 @@ func main() {
 	go http.HandleFunc(urlPattern.Logout, logout)
 	go http.HandleFunc(urlPattern.InsertQuotation, insertQuotation)
 	go http.HandleFunc(urlPattern.ViewResponse, viewResponse)
+	go http.HandleFunc(urlPattern.SellerTransaction, sellerViewTransaction)
+	go http.HandleFunc(urlPattern.CustomerTransaction, customerViewTransaction)
 	// go http.HandleFunc(urlPattern.AutoLogout, autoLogout)
 
 	log.Fatalln(http.ListenAndServe(":5000", nil))
@@ -498,7 +500,7 @@ func viewResponse(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 		}
-		transactions.InsertTransaction(db, ss[1], c.Customer, ss[0], c.Name, c.Storage, c.Housing, c.Screen, c.OriginalAccessories, c.OtherIssues, tNow)
+		transactions.InsertTransaction(db, ss[1], c.Customer, ss[0], c.Name, c.Storage, c.Housing, c.Screen, c.OriginalAccessories, c.OtherIssues, ss[2], tNow)
 		//delete from submissions
 		err = submissions.Delete(db, ss[1])
 		if err != nil {
@@ -509,11 +511,38 @@ func viewResponse(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
 	}
 	tpl.ExecuteTemplate(w, "displayQuotes.html", tableData)
-	//use the id and get the phone name from submissions table
-
-	//after user makes selection, transaction will go to the pastsubmissions table
-	//other quotations from other sellers related to this transactions will be deleted
-	//try to input multiple inputs struct into the tpl.executeTemplate
 }
+
+//sellerViewTransaction obtain data from pastsubmissions table and display
+func sellerViewTransaction(w http.ResponseWriter, r *http.Request) {
+	db := connectDB()
+	username := getUsername(r)
+	var err error
+	var t []transactions.PSubmissions
+	t, err = transactions.GetSeller(db, username)
+	if err != nil {
+		log.Println(err)
+	}
+	tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+}
+
+func customerViewTransaction(w http.ResponseWriter, r *http.Request) {
+	db := connectDB()
+	username := getUsername(r)
+	var err error
+	var t []transactions.PSubmissions
+	t, err = transactions.GetCustomer(db, username)
+	if err != nil {
+		log.Println(err)
+	}
+	tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+}
+
+//Continue with the link for view successful transaction for sellers and view submitted
+//create a func in transaction that takes in customer username and display the results
+// create a func in transactions that takes in seller username and display the results
+//Create 2 func, one for seller, one for customer to view their submissions
