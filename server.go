@@ -77,7 +77,7 @@ func init() {
 	var err error
 	userMap, err = users.GetRecord(db)
 	if err != nil {
-		logger.Logging(db, "Failed to retrieve record from database")
+		logger.Logging(db, "Failed to retrieve record from database: init")
 	}
 
 }
@@ -116,7 +116,7 @@ func getUsername(r *http.Request) string {
 	myCookie, _ := r.Cookie("myCookie")
 	username, err := sessionMap.Search(myCookie.Value)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(connectDB(), "failed to get username from sessionMap: getUsername")
 		return ""
 	}
 	return username
@@ -176,7 +176,8 @@ func index(w http.ResponseWriter, r *http.Request) {
 	// fmt.Printf("Type of username: %T", myUser.Username)
 	err := tpl.ExecuteTemplate(w, "index.html", myUser)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(connectDB(), "Failed to execute template: index")
+		return
 	}
 }
 
@@ -215,7 +216,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			bPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 			if err != nil {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				logger.Logging("Bcrypting password from SignUp")
+				logger.Logging(connectDB(), "Failure in Bcrypting password: SignUp")
 				return
 			}
 			if isCompany == "true" {
@@ -240,7 +241,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 func login(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Logging("Recovered from login")
+			logger.Logging(connectDB(), "Recovered from login: login")
 		}
 	}()
 	if alreadyLoggedIn(r) {
@@ -282,7 +283,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		signedToken, err := secure.GenerateJWT(claiming)
 		if err != nil {
-			logger.Logging("Error in generating token from login")
+			logger.Logging(connectDB(), "Error in generating token from login: login")
 			panic("Error in generating token")
 		}
 		myCookie := &http.Cookie{
@@ -293,12 +294,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 		//create the session
 		err = sessionMap.Insert(signedToken, username)
 		if err != nil {
-			log.Println(err)
+			logger.Logging(connectDB(), "Failed to insert signedToken into sessionMap: login")
+			return
 		}
 		//userTrackMap contains the unencrypted token of user
 		err = userTrackMap.Insert(username, signedToken)
 		if err != nil {
-			log.Println(err)
+			logger.Logging(connectDB(), "Failed to insert into userTrackMap: login")
 		}
 		if username == "admin" {
 			http.Redirect(w, r, "/adminOnly", http.StatusSeeOther)
@@ -314,7 +316,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//if method is not post, means user not logged in yet
-	tpl.ExecuteTemplate(w, "login.html", nil)
+	err := tpl.ExecuteTemplate(w, "login.html", nil)
+	if err != nil {
+		logger.Logging(connectDB(), "Failed to parse login.html template: login")
+	}
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +367,7 @@ func customerSell(w http.ResponseWriter, r *http.Request) {
 		myUser := getUser(w, r)
 		err := submissions.InsertDetails(db, myUser.Username, deviceName, storage, housing, screen, acc, issues, id.String())
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Failed to insert into submissions table: customerSell")
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -390,7 +395,7 @@ func orderList(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 	orders, err := submissions.GetDetails(db)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(connectDB(), "Failed to retrieve info from submissions table: orderlist")
 	}
 	selleruser := getUsername(r)
 	checkedID, err := quotation.SearchSeller(db, selleruser)
@@ -420,13 +425,16 @@ func orderList(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("order")
 		err := sessionMap.InsertTransaction(myCookie.Value, selleruser, id)
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Failed to enter info into sessionMap: orderList")
 			return
 		}
 		http.Redirect(w, r, "/insertQuotation", http.StatusSeeOther)
 		return
 	}
-	tpl.ExecuteTemplate(w, "orderList.html", dataSlice)
+	err = tpl.ExecuteTemplate(w, "orderList.html", dataSlice)
+	if err != nil {
+		logger.Logging(connectDB(), "Failed to parse orderList.html template: orderList")
+	}
 }
 
 func insertQuotation(w http.ResponseWriter, r *http.Request) {
@@ -438,12 +446,12 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 	myCookie, _ := r.Cookie("myCookie")
 	id, err := sessionMap.SearchTransaction(myCookie.Value)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(connectDB(), "Error in searching for id in sessionMap: insertQuotation")
 		return
 	}
 	seller, err := sessionMap.Search(myCookie.Value)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(connectDB(), "Error in searching for seller user in sessionMap: insertQuotation")
 		return
 	}
 	db := connectDB()
@@ -451,7 +459,7 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 	//search the submissions database
 	phoneinfo, err := submissions.GetID(db, id)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(db, "Error in getting id from submission table: insertQuotation")
 		return
 	}
 	//change this======================================================================
@@ -467,13 +475,16 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 		price := r.FormValue("quotation")
 		err = quotation.InsertQuotation(db, phoneinfo.Customer, seller, phoneinfo.ID, price, phoneinfo.Name)
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Error in inserting quotation from seller: insertQuotation")
 			return
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	tpl.ExecuteTemplate(w, "showDetails.html", detailsToDisplay)
+	err = tpl.ExecuteTemplate(w, "showDetails.html", detailsToDisplay)
+	if err != nil {
+		logger.Logging(db, "Error in executing showDetails.html template: insertQuotation")
+	}
 }
 
 //submittedOrder shows the list of submitted quotations to the customer
@@ -487,7 +498,7 @@ func viewResponse(w http.ResponseWriter, r *http.Request) {
 	var tableData []quotation.QuoteTable
 	tableData, err := quotation.GetCustomerQuote(db, customer)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(db, "Error in getting customer quotation: viewResponse")
 		return
 	}
 	if r.Method == http.MethodPost {
@@ -498,23 +509,30 @@ func viewResponse(w http.ResponseWriter, r *http.Request) {
 		tNow = tNow[:28]
 		c, err := submissions.GetID(db, ss[1])
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Error in getting id from submissions table: viewResponse")
 		}
-		transactions.InsertTransaction(db, ss[1], c.Customer, ss[0], c.Name, c.Storage, c.Housing, c.Screen, c.OriginalAccessories, c.OtherIssues, ss[2], tNow)
+		err = transactions.InsertTransaction(db, ss[1], c.Customer, ss[0], c.Name, c.Storage, c.Housing, c.Screen, c.OriginalAccessories, c.OtherIssues, ss[2], tNow)
+		if err != nil {
+			logger.Logging(db, "Error in inserting data into postSubmissions table: viewResponse")
+			return
+		}
 		//delete from submissions
 		err = submissions.Delete(db, ss[1])
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Error in deleting from submissions table: viewResponse")
 		}
 		//delete from quotations
 		err = quotation.Delete(db, ss[1])
 		if err != nil {
-			log.Println(err)
+			logger.Logging(db, "Error in deleting from quotations table: viewResponse")
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	tpl.ExecuteTemplate(w, "displayQuotes.html", tableData)
+	err = tpl.ExecuteTemplate(w, "displayQuotes.html", tableData)
+	if err != nil {
+		logger.Logging(db, "Error in executing displayQuotes.html template: viewResponse")
+	}
 }
 
 //sellerViewTransaction obtain data from pastsubmissions table and display
@@ -525,9 +543,12 @@ func sellerViewTransaction(w http.ResponseWriter, r *http.Request) {
 	var t []transactions.PSubmissions
 	t, err = transactions.GetSeller(db, username)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(db, "Error in getting transaction info from postSubmissions table: sellerViewTransaction")
 	}
-	tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+	err = tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+	if err != nil {
+		logger.Logging(db, "Error in executing displayPastSubmission.html template: sellerViewTransaction")
+	}
 }
 
 func customerViewTransaction(w http.ResponseWriter, r *http.Request) {
@@ -537,9 +558,12 @@ func customerViewTransaction(w http.ResponseWriter, r *http.Request) {
 	var t []transactions.PSubmissions
 	t, err = transactions.GetCustomer(db, username)
 	if err != nil {
-		log.Println(err)
+		logger.Logging(db, "Error in getting info from postSubmissions table: customerViewTransaction")
 	}
-	tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+	err = tpl.ExecuteTemplate(w, "displayPastSubmission.html", t)
+	if err != nil {
+		logger.Logging(db, "Error in executing displayPastSubmission.html template: customerViewTransaction")
+	}
 }
 
 //Continue with the link for view successful transaction for sellers and view submitted
