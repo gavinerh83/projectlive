@@ -58,8 +58,18 @@ create table quotations (
     PhoneName varchar(20) not null
 );
 
+create table passwordreset (
+    Username varchar(60) not null,
+    Key varchar(100) not null,
+    Customer varchar(60) not null
+    
+);
+
 SendGrid.com PASSWORD:
 583b98d8-72d2-4e49-8b35-3fb943105722Iamgavin@93
+
+api keys:
+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
 
 show tables;
 

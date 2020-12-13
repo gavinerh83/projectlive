@@ -15,6 +15,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -591,11 +592,10 @@ func customerViewTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func forgetPassword(w http.ResponseWriter, r *http.Request) {
-	var apiKey = "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"
 	id := uuid.NewV4()
 	claiming := &secure.MyClaims{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(10 * time.Hour).Unix(),
 		},
 		SessionID: id.String(),
 	}
@@ -617,10 +617,10 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 		plainTextContent := "Click on this link to reset your password: http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
 		htmlContent := "Please reset within 5mins of receiving this email " + "http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
 		message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
-		client := sendgrid.NewSendClient(apiKey)
+		client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
 		_, err := client.Send(message)
 		if err != nil {
-			log.Println(err)
+			logger.Logging(connectDB(), "Error in sending email to reset password: forgetPassword")
 		}
 		tpl.ExecuteTemplate(w, "redirect.html", "Password reset sent to your email")
 		return
@@ -632,6 +632,7 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//display html for creating new password for user
 func resetPassword(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	username := r.FormValue("user") //get the username
@@ -674,7 +675,7 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 
 //additional login with oauth
 func oauthLogin(w http.ResponseWriter, r *http.Request) {
-	// io.WriteString")
+
 }
 
 //iauth redirect page
