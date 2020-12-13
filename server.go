@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -19,7 +20,10 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 )
 
 type condition struct {
@@ -60,6 +64,23 @@ type QuotationResponse struct {
 	Seller      string
 }
 
+var googleConfig = &oauth2.Config{
+	ClientID:     "449456299607-j3cg1pqcm060hdriir25jb5b2f9vs40t.apps.googleusercontent.com",
+	ClientSecret: "tnjECFSK4htEAp_cU6tC1qf7",
+	Endpoint: oauth2.Endpoint{
+		AuthURL:  "",
+		TokenURL: "",
+	},
+}
+
+var githubConfig = &oauth2.Config{
+	ClientID:     "823eeb2df20533801c86",
+	ClientSecret: "687f9e3ff3dc7d1b75a9471072ee163b9c41ec68",
+	Endpoint: oauth2.Endpoint{
+		AuthURL:  "https://github.com/login/oauth/authorize",
+		TokenURL: "https://github.com/login/oauth/access_token",
+	},
+}
 var (
 	tpl          *template.Template
 	sessionMap   = hashtable.Init() //uuid as the key, value as the username
@@ -107,7 +128,10 @@ func main() {
 	go http.HandleFunc(urlPattern.ViewResponse, viewResponse)
 	go http.HandleFunc(urlPattern.SellerTransaction, sellerViewTransaction)
 	go http.HandleFunc(urlPattern.CustomerTransaction, customerViewTransaction)
-	// go http.HandleFunc(urlPattern.AutoLogout, autoLogout)
+	go http.HandleFunc(urlPattern.ForgetPassword, forgetPassword)
+	go http.HandleFunc(urlPattern.ResetPassword, resetPassword)
+	go http.HandleFunc(urlPattern.OauthLogin, oauthLogin)
+	go http.HandleFunc(urlPattern.OauthRedirect, oauthRedirect)
 
 	log.Fatalln(http.ListenAndServe(":5000", nil))
 }
@@ -566,7 +590,94 @@ func customerViewTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//Continue with the link for view successful transaction for sellers and view submitted
-//create a func in transaction that takes in customer username and display the results
-// create a func in transactions that takes in seller username and display the results
-//Create 2 func, one for seller, one for customer to view their submissions
+func forgetPassword(w http.ResponseWriter, r *http.Request) {
+	var apiKey = "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"
+	id := uuid.NewV4()
+	claiming := &secure.MyClaims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
+		},
+		SessionID: id.String(),
+	}
+	signedToken, err := secure.GenerateJWT(claiming)
+	if err != nil {
+		logger.Logging(connectDB(), "Error in generating token from login: login")
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		email := r.FormValue("email")
+		if _, ok := userMap[email]; !ok {
+			tpl.ExecuteTemplate(w, "redirect.html", "Email not found")
+			return
+		}
+		from := mail.NewEmail("Upseller", "gavinerh@gmail.com")
+		subject := "Password reset"
+		to := mail.NewEmail(email, email)
+		plainTextContent := "Click on this link to reset your password: http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
+		htmlContent := "Please reset within 5mins of receiving this email " + "http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
+		message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
+		client := sendgrid.NewSendClient(apiKey)
+		_, err := client.Send(message)
+		if err != nil {
+			log.Println(err)
+		}
+		tpl.ExecuteTemplate(w, "redirect.html", "Password reset sent to your email")
+		return
+	}
+	//serve the password reset page to get the email for them to enter
+	err = tpl.ExecuteTemplate(w, "forgetPassword.html", nil)
+	if err != nil {
+		logger.Logging(connectDB(), "Error in executing forget password template: forgetPassword")
+	}
+}
+
+func resetPassword(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	username := r.FormValue("user") //get the username
+	_, err := secure.ParseToken(token)
+	if err != nil {
+		io.WriteString(w, "Link has expired please reset again")
+		http.Redirect(w, r, "/", http.StatusBadRequest)
+		return
+	}
+	if r.Method == http.MethodPost {
+		password := r.FormValue("password")
+		if !secure.InputValidate(password) {
+			tpl.ExecuteTemplate(w, "redirect.html", "Your password should not contain ', \",  <, >, tabs or empty spaces")
+			return
+		}
+		bPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			logger.Logging(connectDB(), "Failure in Bcrypting password: SignUp")
+			return
+		}
+		//update the users table and usermap
+		err = users.UpdateRecord(connectDB(), string(bPassword), username)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		myUser := userMap[username]
+		myUser.Password = string(bPassword)
+		userMap[username] = myUser
+		tpl.ExecuteTemplate(w, "redirect.html", "Please login again")
+		return
+
+	}
+	err = tpl.ExecuteTemplate(w, "resetPassword.html", nil)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+//additional login with oauth
+func oauthLogin(w http.ResponseWriter, r *http.Request) {
+	// io.WriteString")
+}
+
+//iauth redirect page
+func oauthRedirect(w http.ResponseWriter, r *http.Request) {
+	//check if the code you sent over to github is the same when redirected back
+}

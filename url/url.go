@@ -12,6 +12,10 @@ type url struct {
 	SellerTransaction   string
 	InsertQuotation     string
 	CustomerTransaction string
+	ForgetPassword      string
+	ResetPassword       string
+	OauthLogin          string
+	OauthRedirect       string
 }
 
 //ReturnURL returns the url for the controller
@@ -28,5 +32,9 @@ func ReturnURL() url {
 	urlPattern.InsertQuotation = "/insertQuotation"
 	urlPattern.SellerTransaction = "/successTransactions"
 	urlPattern.CustomerTransaction = "/viewSubmitted"
+	urlPattern.ForgetPassword = "/forgetpassword"
+	urlPattern.ResetPassword = "/resetpassword"
+	urlPattern.OauthLogin = "/oauthlogin"
+	urlPattern.OauthRedirect = "/oauthredirect"
 	return urlPattern
 }

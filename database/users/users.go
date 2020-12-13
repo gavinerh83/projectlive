@@ -85,3 +85,13 @@ func SearchRecord(db *sql.DB, username string) (User, error) {
 	}
 	return users, nil
 }
+
+//UpdateRecord updates the password of the user after resetting
+func UpdateRecord(db *sql.DB, password, username string) error {
+	query2 := fmt.Sprintf("UPDATE users SET Password ='%s' WHERE Username ='%s'", password, username)
+	_, err := db.Query(query2)
+	if err != nil {
+		return err
+	}
+	return nil
+}
