@@ -3,6 +3,7 @@ package main
 import (
 	"ProjectLive/database/logger"
 	"ProjectLive/database/quotation"
+	"ProjectLive/database/secretkey"
 	"ProjectLive/database/submissions"
 	"ProjectLive/database/transactions"
 	"ProjectLive/database/users"
@@ -15,7 +16,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -58,6 +58,7 @@ type displayQuotation struct {
 	ID          string
 }
 
+//QuotationResponse contain the fields for the displaying of quotation to customer
 type QuotationResponse struct {
 	ID          string
 	NameOfPhone string
@@ -66,8 +67,8 @@ type QuotationResponse struct {
 }
 
 var githubConfig = &oauth2.Config{
-	ClientID:     "823eeb2df20533801c86",
-	ClientSecret: "687f9e3ff3dc7d1b75a9471072ee163b9c41ec68",
+	ClientID:     clientID,
+	ClientSecret: clientSecret,
 	Endpoint: oauth2.Endpoint{
 		AuthURL:  "https://github.com/login/oauth/authorize",
 		TokenURL: "https://github.com/login/oauth/access_token",
@@ -80,6 +81,10 @@ var (
 	sqluser      = "root"
 	sqlpassword  = "password"
 	userMap      map[string]users.User
+	encryptKey   string //encryption key
+	apiKey       string
+	clientID     string //oauth
+	clientSecret string //oauth
 )
 
 func init() {
@@ -92,7 +97,6 @@ func init() {
 	if err != nil {
 		logger.Logging(db, "Failed to retrieve record from database: init")
 	}
-
 }
 func connectDB() *sql.DB {
 	connectionString := fmt.Sprintf("%s:%s@tcp(127.0.0.1:8888)/store", sqluser, sqlpassword)
@@ -473,20 +477,12 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 	db := connectDB()
 	defer db.Close()
 	//search the submissions database
-	phoneinfo, err := submissions.GetID(db, id)
+	var phoneinfo submissions.Condition
+	phoneinfo, err = submissions.GetID(db, id)
 	if err != nil {
 		logger.Logging(db, "Error in getting id from submission table: insertQuotation")
 		return
 	}
-	//change this======================================================================
-	detailsToDisplay := phoneDetails{}
-	detailsToDisplay.NameOfPhone = phoneinfo.Name
-	detailsToDisplay.Storage = phoneinfo.Storage
-	detailsToDisplay.Screen = phoneinfo.Screen
-	detailsToDisplay.Housing = phoneinfo.Housing
-	detailsToDisplay.AnyOtherIssues = phoneinfo.OtherIssues
-	detailsToDisplay.OriginalAccessories = phoneinfo.OriginalAccessories
-	detailsToDisplay.ID = phoneinfo.ID
 	if r.Method == http.MethodPost {
 		price := r.FormValue("quotation")
 		err = quotation.InsertQuotation(db, phoneinfo.Customer, seller, phoneinfo.ID, price, phoneinfo.Name)
@@ -497,7 +493,7 @@ func insertQuotation(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	err = tpl.ExecuteTemplate(w, "showDetails.html", detailsToDisplay)
+	err = tpl.ExecuteTemplate(w, "showDetails.html", phoneinfo)
 	if err != nil {
 		logger.Logging(db, "Error in executing showDetails.html template: insertQuotation")
 	}
@@ -602,14 +598,19 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 			tpl.ExecuteTemplate(w, "redirect.html", "Email not found")
 			return
 		}
+		apiKey, err := secretkey.GetKey(connectDB(), "apiKey")
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		from := mail.NewEmail("Upseller", "gavinerh@gmail.com")
 		subject := "Password reset"
 		to := mail.NewEmail(email, email)
 		plainTextContent := "Click on this link to reset your password: http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
 		htmlContent := "Please reset within 5mins of receiving this email " + "http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
 		message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
-		client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-		_, err := client.Send(message)
+		client := sendgrid.NewSendClient(apiKey)
+		_, err = client.Send(message)
 		if err != nil {
 			logger.Logging(connectDB(), "Error in sending email to reset password: forgetPassword")
 		}
