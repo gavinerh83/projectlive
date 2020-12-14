@@ -26,8 +26,28 @@ import (
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
 )
+
+var (
+	tpl          *template.Template
+	sessionMap   = hashtable.Init() //uuid as the key, value as the username
+	userTrackMap = hashtable.Init() //key is the username, value is the
+	sqluser      string
+	sqlpassword  string
+	userMap      map[string]users.User
+	key          string //encryption key
+	apiKey       string
+	clientID     string //oauth
+	clientSecret string //oauth
+)
+
+type githubResponse struct {
+	Data struct {
+		Viewer struct {
+			ID string `json:"id"`
+		} `json:"viewer"`
+	} `json:"data"`
+}
 
 type condition struct {
 	Storage             []string
@@ -68,27 +88,6 @@ type QuotationResponse struct {
 	Seller      string
 }
 
-var githubConfig = &oauth2.Config{
-	ClientID:     clientID,
-	ClientSecret: clientSecret,
-	Endpoint: oauth2.Endpoint{
-		AuthURL:  "https://github.com/login/oauth/authorize",
-		TokenURL: "https://github.com/login/oauth/access_token",
-	},
-}
-var (
-	tpl          *template.Template
-	sessionMap   = hashtable.Init() //uuid as the key, value as the username
-	userTrackMap = hashtable.Init() //key is the username, value is the
-	sqluser      string
-	sqlpassword  string
-	userMap      map[string]users.User
-	key          string //encryption key
-	apiKey       string
-	clientID     string //oauth
-	clientSecret string //oauth
-)
-
 func init() {
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -96,6 +95,8 @@ func init() {
 	}
 	sqluser = os.Getenv("SQL_USER")
 	sqlpassword = os.Getenv("SQL_PASSWORD")
+	clientID = os.Getenv("GITHUB_ID")
+	clientSecret = os.Getenv("GITHUB_SECRET")
 	tpl = template.Must(template.ParseGlob("templates/*.html"))
 	//connect to database and fill the datastructures with info from database
 	db := connectDB()
@@ -137,9 +138,6 @@ func main() {
 	go http.HandleFunc(urlPattern.CustomerTransaction, customerViewTransaction)
 	go http.HandleFunc(urlPattern.ForgetPassword, forgetPassword)
 	go http.HandleFunc(urlPattern.ResetPassword, resetPassword)
-	go http.HandleFunc(urlPattern.OauthLogin, oauthLogin)
-	go http.HandleFunc(urlPattern.OauthRedirect, oauthRedirect)
-
 	log.Fatalln(http.ListenAndServe(":5000", nil))
 }
 
@@ -676,16 +674,61 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// var githubConfig = &oauth2.Config{}
+
 //additional login with oauth
-func oauthLogin(w http.ResponseWriter, r *http.Request) {
-	// id := uuid.NewV4()
-	// redirect := githubConfig.AuthCodeURL(id.String())
-}
+// func oauthLogin(w http.ResponseWriter, r *http.Request) {
+// 	id := uuid.NewV4()
+// 	//save the id in the database
+// 	oauth.InsertTempID(connectDB(), id.String())
+// 	githubConfig.ClientID = clientID
+// 	githubConfig.ClientSecret = clientSecret
+// 	githubConfig.Endpoint = github.Endpoint
+// 	redirectURL := githubConfig.AuthCodeURL(id.String())
+// 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+// }
 
-//iauth redirect page
-func oauthRedirect(w http.ResponseWriter, r *http.Request) {
-	//check if the code you sent over to github is the same when redirected back
-}
+//oauth redirect page
+// func oauthRedirect(w http.ResponseWriter, r *http.Request) {
+// 	// check if the code you sent over to github is the same when redirected back
+// 	code := r.FormValue("code")
+// 	state := r.FormValue("state")
+// 	m, err := oauth.GetTempID(connectDB())
+// 	if err != nil {
+// 		log.Println(err)
+// 		return
+// 	}
+// 	if _, ok := m[state]; !ok {
+// 		http.Error(w, "State not found", http.StatusBadRequest)
+// 		return
+// 	}
+// 	token, err := githubConfig.Exchange(r.Context(), code)
+// 	if err != nil {
+// 		http.Error(w, "Could not login", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	ts := githubConfig.TokenSource(r.Context(), token)
+// 	client := oauth2.NewClient(r.Context(), ts)
+// 	requestBody := strings.NewReader(`{"query": "query {viewer {id}}"}`)
+// 	res, err := client.Post("https://api.github.com/graphql", "application/json", requestBody)
+// 	if err != nil {
+// 		http.Error(w, "Could not get user", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer res.Body.Close()
+// 	bs, err := ioutil.ReadAll(res.Body)
+// 	if err != nil {
+// 		http.Error(w, "Could not read github information", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	var gr githubResponse
+// 	err = json.NewDecoder(res.Body).Decode(&gr)
+// 	if err != nil {
+// 		http.Error(w, "Github invalid response", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	githubLoginID := gr.Data.Viewer.ID
+// }
 
-//if oauth is not created, we can continue to do the testing script for main and the packages
-//
+// //if oauth is not created, we can continue to do the testing script for main and the packages
+// //
