@@ -65,15 +65,6 @@ type QuotationResponse struct {
 	Seller      string
 }
 
-var googleConfig = &oauth2.Config{
-	ClientID:     "449456299607-j3cg1pqcm060hdriir25jb5b2f9vs40t.apps.googleusercontent.com",
-	ClientSecret: "tnjECFSK4htEAp_cU6tC1qf7",
-	Endpoint: oauth2.Endpoint{
-		AuthURL:  "",
-		TokenURL: "",
-	},
-}
-
 var githubConfig = &oauth2.Config{
 	ClientID:     "823eeb2df20533801c86",
 	ClientSecret: "687f9e3ff3dc7d1b75a9471072ee163b9c41ec68",
