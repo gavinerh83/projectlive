@@ -16,10 +16,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/joho/godotenv"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -78,24 +80,33 @@ var (
 	tpl          *template.Template
 	sessionMap   = hashtable.Init() //uuid as the key, value as the username
 	userTrackMap = hashtable.Init() //key is the username, value is the
-	sqluser      = "root"
-	sqlpassword  = "password"
+	sqluser      string
+	sqlpassword  string
 	userMap      map[string]users.User
-	encryptKey   string //encryption key
+	key          string //encryption key
 	apiKey       string
 	clientID     string //oauth
 	clientSecret string //oauth
 )
 
 func init() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+	sqluser = os.Getenv("SQL_USER")
+	sqlpassword = os.Getenv("SQL_PASSWORD")
 	tpl = template.Must(template.ParseGlob("templates/*.html"))
 	//connect to database and fill the datastructures with info from database
 	db := connectDB()
 	defer db.Close()
-	var err error
 	userMap, err = users.GetRecord(db)
 	if err != nil {
 		logger.Logging(db, "Failed to retrieve record from database: init")
+	}
+	key, err = secretkey.GetKey(db, "encryptionKey")
+	if err != nil {
+		log.Println(err)
 	}
 }
 func connectDB() *sql.DB {
@@ -667,10 +678,14 @@ func resetPassword(w http.ResponseWriter, r *http.Request) {
 
 //additional login with oauth
 func oauthLogin(w http.ResponseWriter, r *http.Request) {
-
+	// id := uuid.NewV4()
+	// redirect := githubConfig.AuthCodeURL(id.String())
 }
 
 //iauth redirect page
 func oauthRedirect(w http.ResponseWriter, r *http.Request) {
 	//check if the code you sent over to github is the same when redirected back
 }
+
+//if oauth is not created, we can continue to do the testing script for main and the packages
+//
