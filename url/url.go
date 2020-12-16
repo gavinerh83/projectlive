@@ -14,6 +14,8 @@ type url struct {
 	CustomerTransaction string
 	ForgetPassword      string
 	ResetPassword       string
+	Search              string
+	List                string
 }
 
 //ReturnURL returns the url for the controller
@@ -32,5 +34,7 @@ func ReturnURL() url {
 	urlPattern.CustomerTransaction = "/viewSubmitted"
 	urlPattern.ForgetPassword = "/forgetpassword"
 	urlPattern.ResetPassword = "/resetpassword"
+	urlPattern.Search = "/search"
+	urlPattern.List = "/list"
 	return urlPattern
 }

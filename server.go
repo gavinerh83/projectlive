@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ProjectLive/binarytree"
 	"ProjectLive/database/logger"
 	"ProjectLive/database/quotation"
 	"ProjectLive/database/secretkey"
@@ -9,6 +10,7 @@ import (
 	"ProjectLive/database/users"
 	hashtable "ProjectLive/hashTable"
 	"ProjectLive/secure"
+	"ProjectLive/sorting"
 	"ProjectLive/url"
 	"database/sql"
 	"fmt"
@@ -32,6 +34,7 @@ var (
 	tpl          *template.Template
 	sessionMap   = hashtable.Init() //uuid as the key, value as the username
 	userTrackMap = hashtable.Init() //key is the username, value is the
+	sellerMap    = binarytree.Init()
 	sqluser      string
 	sqlpassword  string
 	userMap      map[string]users.User
@@ -40,14 +43,6 @@ var (
 	clientID     string //oauth
 	clientSecret string //oauth
 )
-
-type githubResponse struct {
-	Data struct {
-		Viewer struct {
-			ID string `json:"id"`
-		} `json:"viewer"`
-	} `json:"data"`
-}
 
 type condition struct {
 	Storage             []string
@@ -63,30 +58,31 @@ type data struct {
 	ID          string
 }
 
-type phoneDetails struct {
-	NameOfPhone         string
-	ID                  string
-	Storage             string
-	Housing             string
-	Screen              string
-	AnyOtherIssues      string
-	OriginalAccessories string
-}
+// type phoneDetails struct {
+// 	NameOfPhone         string
+// 	ID                  string
+// 	Storage             string
+// 	Housing             string
+// 	Screen              string
+// 	AnyOtherIssues      string
+// 	OriginalAccessories string
+// }
 
-type displayQuotation struct {
-	Seller      string
-	NameOfPhone string
-	Quotation   string
-	ID          string
-}
+//displayQuotation contains the fields for parsing information into
+// type displayQuotation struct {
+// 	Seller      string
+// 	NameOfPhone string
+// 	Quotation   string
+// 	ID          string
+// }
 
 //QuotationResponse contain the fields for the displaying of quotation to customer
-type QuotationResponse struct {
-	ID          string
-	NameOfPhone string
-	Price       string
-	Seller      string
-}
+// type QuotationResponse struct {
+// 	ID          string
+// 	NameOfPhone string
+// 	Price       string
+// 	Seller      string
+// }
 
 func init() {
 	err := godotenv.Load(".env")
@@ -104,6 +100,19 @@ func init() {
 	userMap, err = users.GetRecord(db)
 	if err != nil {
 		logger.Logging(db, "Failed to retrieve record from database: init")
+	}
+	var sCompany []users.User
+	sCompany, err = users.RetrieveSeller(db)
+	if err != nil {
+		log.Println(err)
+	}
+	for _, v := range sCompany {
+		//populate the binary tree with company
+		err = sellerMap.Insert(v.Company, v.Username)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 	key, err = secretkey.GetKey(db, "encryptionKey")
 	if err != nil {
@@ -127,6 +136,8 @@ func main() {
 	//handles static css files
 	http.Handle(urlPattern.Static, http.StripPrefix(urlPattern.Static, http.FileServer(http.Dir("."+urlPattern.Static))))
 	go http.HandleFunc(urlPattern.Home, index)
+	go http.HandleFunc(urlPattern.Search, searchSeller)
+	go http.HandleFunc(urlPattern.List, listSellers)
 	go http.HandleFunc(urlPattern.Signup, signup)
 	go http.HandleFunc(urlPattern.Login, login)
 	go http.HandleFunc(urlPattern.CustomerSell, customerSell)
@@ -138,9 +149,35 @@ func main() {
 	go http.HandleFunc(urlPattern.CustomerTransaction, customerViewTransaction)
 	go http.HandleFunc(urlPattern.ForgetPassword, forgetPassword)
 	go http.HandleFunc(urlPattern.ResetPassword, resetPassword)
-	log.Fatalln(http.ListenAndServe(":5000", nil))
+	// log.Fatalln(http.ListenAndServe(":5000", nil))
+	log.Fatalln(http.ListenAndServeTLS(":5000", "cert.pem", "key.pem", nil))
 }
 
+func searchSeller(w http.ResponseWriter, r *http.Request) {
+	//take the binary tree and call the lookup function
+	if r.Method == http.MethodPost {
+		sellerName := r.FormValue("seller")
+		var s binarytree.ReturnSellerInfo
+		s, err := sellerMap.Lookup(sellerName)
+		if err != nil {
+			tpl.ExecuteTemplate(w, "redirect.html", "Company not found")
+			return
+		}
+		tpl.ExecuteTemplate(w, "displaySeller.html", s)
+		return
+	}
+	tpl.ExecuteTemplate(w, "searchSeller.html", nil)
+}
+
+func listSellers(w http.ResponseWriter, r *http.Request) {
+	//take the binary tree and call the listallnodes function
+	binarytree.ResetSlice()
+	s := sellerMap.ListAllNodes(sellerMap.Root)
+	sorted := sorting.Split(s)
+	tpl.ExecuteTemplate(w, "list.html", sorted)
+}
+
+//getUsername returns the username or the email of the user
 func getUsername(r *http.Request) string {
 	myCookie, _ := r.Cookie("myCookie")
 	username, err := sessionMap.Search(myCookie.Value)
@@ -250,6 +287,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			}
 			if isCompany == "true" {
 				userMap[username] = users.User{Username: username, Password: string(bPassword), Company: company, IsCompany: isCompany}
+				sellerMap.Insert(company, username)
 			} else {
 				company = ""
 				isCompany = "false"
@@ -427,6 +465,7 @@ func orderList(w http.ResponseWriter, r *http.Request) {
 		logger.Logging(connectDB(), "Failed to retrieve info from submissions table: orderlist")
 	}
 	selleruser := getUsername(r)
+	//returns the id that seller responds to already
 	checkedID, err := quotation.SearchSeller(db, selleruser)
 	dataSlice := []data{}
 	for _, v := range orders {
@@ -623,7 +662,10 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Logging(connectDB(), "Error in sending email to reset password: forgetPassword")
 		}
-		tpl.ExecuteTemplate(w, "redirect.html", "Password reset sent to your email")
+		err = tpl.ExecuteTemplate(w, "redirect.html", "Password reset sent to your email")
+		if err != nil {
+			logger.Logging(connectDB(), "Error in parsing template redirect.html: forgetPassword")
+		}
 		return
 	}
 	//serve the password reset page to get the email for them to enter

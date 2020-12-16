@@ -2,7 +2,6 @@ package transactions
 
 import (
 	"database/sql"
-	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -24,8 +23,13 @@ type PSubmissions struct {
 
 //InsertTransaction inserts successful transactions into the pastSubmission table
 func InsertTransaction(db *sql.DB, id, customer, seller, name, storage, housing, screen, originalAccessories, otherissues, quotation, datetime string) error {
-	query := fmt.Sprintf("INSERT INTO pastsubmissions (ID, Customer, Seller, Name, Storage, Housing, Screen, Original_Accessories, Other_Issues, Quotation, DateTime) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", id, customer, seller, name, storage, housing, screen, originalAccessories, otherissues, quotation, datetime)
-	_, err := db.Query(query)
+	query := "INSERT INTO pastsubmissions (ID, Customer, Seller, Name, Storage, Housing, Screen, Original_Accessories, Other_Issues, Quotation, DateTime) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(id, customer, seller, name, storage, housing, screen, originalAccessories, otherissues, quotation, datetime)
 	if err != nil {
 		return err
 	}

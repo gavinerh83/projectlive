@@ -18,8 +18,13 @@ type QuoteTable struct {
 
 //InsertQuotation insert quotation from seller in the quotation database
 func InsertQuotation(db *sql.DB, customer, seller, id, quotation, nameOfPhone string) error {
-	query := fmt.Sprintf("INSERT INTO quotations (ID, Quotation, Customer, Seller, PhoneName) VALUES ('%s', '%s', '%s', '%s', '%s')", id, quotation, customer, seller, nameOfPhone)
-	_, err := db.Query(query)
+	query := "INSERT INTO quotations (ID, Quotation, Customer, Seller, PhoneName) VALUES (?,?,?,?,?)"
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(id, quotation, customer, seller, nameOfPhone)
 	if err != nil {
 		return err
 	}
@@ -67,9 +72,13 @@ func GetCustomerQuote(db *sql.DB, customer string) ([]QuoteTable, error) {
 
 //Delete removes entry tagged to the transaction id
 func Delete(db *sql.DB, id string) error {
-	query := fmt.Sprintf(
-		"DELETE FROM quotations WHERE ID = '%s'", id)
-	result, err := db.Exec(query) //try exec and get the resuults
+	query := "DELETE FROM quotations WHERE ID = ?"
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	result, err := stmt.Exec(id)
 	if err != nil {
 		return err
 	}
@@ -78,7 +87,7 @@ func Delete(db *sql.DB, id string) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("Course code not found")
+		return fmt.Errorf("ID not found")
 	}
 	return nil
 }
