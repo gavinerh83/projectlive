@@ -12,6 +12,9 @@ jobs:
             go version: 'v1.13.7'
       - name: Check Go version
         run: go version
+      - name: List files
+        run:  |
+          ls -a
       - name: Install dependencies
         id: InstallDependencies
         run: |
