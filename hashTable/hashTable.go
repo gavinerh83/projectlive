@@ -41,7 +41,7 @@ func (h *HashTable) Insert(key string, value string) error {
 	return h.array[index].insert(key, value)
 }
 
-//Search looks for the key in the hashtable and returns the username
+//Search looks for the key in the hashtable and returns the value field
 func (h *HashTable) Search(key string) (string, error) {
 	index := hash(key)
 	return h.array[index].search(key)

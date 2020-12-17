@@ -32,13 +32,13 @@ import (
 
 var (
 	tpl          *template.Template
-	sessionMap   = hashtable.Init() //uuid as the key, value as the username
-	userTrackMap = hashtable.Init() //key is the username, value is the
-	sellerMap    = binarytree.Init()
+	sessionMap   = hashtable.Init()  //uuid as the key, value as the username
+	userTrackMap = hashtable.Init()  //key is the username, value is the jwt token
+	sellerMap    = binarytree.Init() //stores the information on the seller information
 	sqluser      string
 	sqlpassword  string
-	userMap      map[string]users.User
-	key          string //encryption key
+	userMap      map[string]users.User //key is username, value is the User struct
+	key          string                //encryption key
 	apiKey       string
 	clientID     string //oauth
 	clientSecret string //oauth
@@ -57,32 +57,6 @@ type data struct {
 	NameOfPhone string
 	ID          string
 }
-
-// type phoneDetails struct {
-// 	NameOfPhone         string
-// 	ID                  string
-// 	Storage             string
-// 	Housing             string
-// 	Screen              string
-// 	AnyOtherIssues      string
-// 	OriginalAccessories string
-// }
-
-//displayQuotation contains the fields for parsing information into
-// type displayQuotation struct {
-// 	Seller      string
-// 	NameOfPhone string
-// 	Quotation   string
-// 	ID          string
-// }
-
-//QuotationResponse contain the fields for the displaying of quotation to customer
-// type QuotationResponse struct {
-// 	ID          string
-// 	NameOfPhone string
-// 	Price       string
-// 	Seller      string
-// }
 
 func init() {
 	err := godotenv.Load(".env")
@@ -330,6 +304,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err := userTrackMap.Search(username)
 		if err == nil {
+			//there is another account used, delete the other account
+
 			tpl.ExecuteTemplate(w, "redirect.html", "There is a similar account currently logged in, please logout first")
 			return
 		}
@@ -364,7 +340,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			logger.Logging(connectDB(), "Failed to insert signedToken into sessionMap: login")
 			return
 		}
-		//userTrackMap contains the unencrypted token of user
+		//userTrackMap contains the JWT token of user
 		err = userTrackMap.Insert(username, signedToken)
 		if err != nil {
 			logger.Logging(connectDB(), "Failed to insert into userTrackMap: login")
@@ -630,7 +606,7 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 	id := uuid.NewV4()
 	claiming := &secure.MyClaims{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(10 * time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
 		},
 		SessionID: id.String(),
 	}
@@ -654,8 +630,8 @@ func forgetPassword(w http.ResponseWriter, r *http.Request) {
 		from := mail.NewEmail("Upseller", "gavinerh@gmail.com")
 		subject := "Password reset"
 		to := mail.NewEmail(email, email)
-		plainTextContent := "Click on this link to reset your password: http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
-		htmlContent := "Please reset within 5mins of receiving this email " + "http://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
+		plainTextContent := "Click on this link to reset your password: https://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
+		htmlContent := "Please reset within 5mins of receiving this email " + "https://localhost:5000/resetpassword?token=" + signedToken + "&user=" + email
 		message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
 		client := sendgrid.NewSendClient(apiKey)
 		_, err = client.Send(message)

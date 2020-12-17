@@ -1,0 +1,38 @@
+name: Project live
+on: [push]
+jobs:
+  run-shell-command:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+            go version: 'v1.13.7'
+      - name: Check Go version
+        run: go version
+      - name: Install dependencies
+        id: InstallDependencies
+        run: |
+          go get github.com/tebeka/go2xunit
+      - if: ${{success()}}
+        run: |
+          go get github.com/DATA-DOG/go-sqlmock
+      - if: ${{success()}}
+        run: |
+          go get github.com/stretchr/testify
+      - if: ${{success()}}
+        name: Test using Testify
+        run: |
+          go test -v 
+          2>&1 go test -v | go2xunit -output report.xml
+      - if: ${{failure()}}
+        name: Creating issues if failed
+        uses: nashmaniac/create-issue-action@v1.1
+        with:
+          title: Build Failed
+          token: ${{secrets.GITHUB_TOKEN}}
+          assignees: ${{github.actor}}
+          labels: worflow-failed
+          body: Workflow failed for commit ${{github.sha}}
