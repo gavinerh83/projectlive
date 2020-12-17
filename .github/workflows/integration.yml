@@ -2,7 +2,7 @@ name: Project live
 on: [push]
 jobs:
   run-shell-command:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-16.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -15,21 +15,57 @@ jobs:
       - name: List files
         run:  |
           ls -a
-      - name: Install dependencies
-        id: InstallDependencies
-        run: |
-          go get github.com/tebeka/go2xunit
-      - if: ${{success()}}
+      - name: Getting dependencies
         run: |
           go get github.com/DATA-DOG/go-sqlmock
       - if: ${{success()}}
         run: |
           go get github.com/stretchr/testify
       - if: ${{success()}}
-        name: Test using Testify
+        name: Go into logger directory and run test
         run: |
-          go test -v 
-          2>&1 go test -v | go2xunit -output report.xml
+          cd database/logger/
+          go test -v
+      - if: ${{success()}}
+        name: Go into secretKey directory and run test
+        run: |
+          cd database/secretkey/
+          go test -v
+      - if: ${{success()}}
+        name: Go into submissions directory and run test
+        run: |
+          cd submissions/
+          go test -v
+      - if: ${{success()}}
+        name: Go into transactions directory and run test
+        run: |
+          cd database/transactions/
+          go test -v
+      - if: ${{success()}}
+        name: Go into quotation directory and run test
+        run: |
+          cd database/quotation/
+          go test -v
+      - if: ${{success()}}
+        name: Go into users directory and run test
+        run: |
+          cd database/users/
+          go test -v
+      - if: ${{success()}}
+        name: Go into binarytree directory and run test
+        run: |
+          cd binarytree/
+          go test -v
+      - if: ${{success()}}
+        name: Go into sorting directory and run test
+        run: |
+          cd sorting/
+          go test -v
+      - if: ${{success()}}
+        name: Go into hashTable directory and run test
+        run: |
+          cd hashTable/
+          go test -v
       - if: ${{failure()}}
         name: Creating issues if failed
         uses: nashmaniac/create-issue-action@v1.1
@@ -39,3 +75,9 @@ jobs:
           assignees: ${{github.actor}}
           labels: worflow-failed
           body: Workflow failed for commit ${{github.sha}}
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1.5
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: test-results/**/*.xml
